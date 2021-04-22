@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"qixiche.github.io","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="如何判定为垃圾引用计数算法每个对象添加一个引用计数器，被引用时，引用计数器值加一，引用失效时，计数器值减一，无法解决循环引用等问题 可达性分析算法通过一系列称为GC Roots的根对象作为起点集，根据引用关系向下搜索，搜索走过的路径称为引用链，如果某个对象到GC Roots间没有任何引用链相连，则证明该对象不可达，需要被回收 GC Roots 在Java虚拟机栈（栈桢中的本地变量表）中引用的对象，">
+<meta property="og:type" content="article">
+<meta property="og:title" content="JVM-垃圾收集">
+<meta property="og:url" content="http://qixiche.github.io/2021/03/23/JVM-%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6/index.html">
+<meta property="og:site_name" content="大刘碎碎念">
+<meta property="og:description" content="如何判定为垃圾引用计数算法每个对象添加一个引用计数器，被引用时，引用计数器值加一，引用失效时，计数器值减一，无法解决循环引用等问题 可达性分析算法通过一系列称为GC Roots的根对象作为起点集，根据引用关系向下搜索，搜索走过的路径称为引用链，如果某个对象到GC Roots间没有任何引用链相连，则证明该对象不可达，需要被回收 GC Roots 在Java虚拟机栈（栈桢中的本地变量表）中引用的对象，">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2021-03-23T02:21:20.000Z">
+<meta property="article:modified_time" content="2021-04-15T04:38:27.823Z">
+<meta property="article:author" content="大刘">
+<meta property="article:tag" content="JVM">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://qixiche.github.io/2021/03/23/JVM-%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>JVM-垃圾收集 | 大刘碎碎念</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">大刘碎碎念</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://qixiche.github.io/2021/03/23/JVM-%E5%9E%83%E5%9C%BE%E5%9B%9E%E6%94%B6/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="大刘">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="大刘碎碎念">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          JVM-垃圾收集
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-03-23 10:21:20" itemprop="dateCreated datePublished" datetime="2021-03-23T10:21:20+08:00">2021-03-23</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-04-15 12:38:27" itemprop="dateModified" datetime="2021-04-15T12:38:27+08:00">2021-04-15</time>
+              </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h4 id="如何判定为垃圾"><a href="#如何判定为垃圾" class="headerlink" title="如何判定为垃圾"></a>如何判定为垃圾</h4><h5 id="引用计数算法"><a href="#引用计数算法" class="headerlink" title="引用计数算法"></a>引用计数算法</h5><p>每个对象添加一个引用计数器，被引用时，引用计数器值加一，引用失效时，计数器值减一，无法解决循环引用等问题</p>
+<h5 id="可达性分析算法"><a href="#可达性分析算法" class="headerlink" title="可达性分析算法"></a>可达性分析算法</h5><p>通过一系列称为GC Roots的根对象作为起点集，根据引用关系向下搜索，搜索走过的路径称为引用链，如果某个对象到GC Roots间没有任何引用链相连，则证明该对象不可达，需要被回收</p>
+<h6 id="GC-Roots"><a href="#GC-Roots" class="headerlink" title="GC Roots"></a>GC Roots</h6><ul>
+<li>在Java虚拟机栈（栈桢中的本地变量表）中引用的对象，例如方法中使用到的参数、局部变量、临时变量等</li>
+<li>方法区中类静态属性引用的对象，例如Java类的引用类型静态变量</li>
+<li>方法区中常量引用的对象，例如字符串常量池中的引用</li>
+<li>JNI（Navive）方法中的引用</li>
+<li>Java虚拟机内部的引用，例如基本数据类型对应的Class对象，一些常驻的异常对象，系统类加载器</li>
+<li>所有被同步锁（synchronize）持有的对象</li>
+<li>反映Java虚拟机内部情况的JMXBean、JVMTI中注册的回调、本地代码缓存等</li>
+</ul>
+<span id="more"></span>
+
+<h5 id="引用类型"><a href="#引用类型" class="headerlink" title="引用类型"></a>引用类型</h5><ul>
+<li><p>强引用</p>
+<p>例如Object obj = new Object()，无论任何情况下，只要强引用关系还存在，垃圾收集器就永远不会回收掉被引用的对象</p>
+</li>
+<li><p>软引用</p>
+<p>在系统将要发生内存溢出异常前，会把这些对象列进回收范围之中进行第二次回收</p>
+</li>
+<li><p>弱引用</p>
+<p>当垃圾收集器开始工作时，无论当前内存是否足够，都会回收掉被弱引用关联的对象</p>
+</li>
+<li><p>虚引用</p>
+<p>虚引用不会对对象的生存时间构成影响，也无法通过虚引用来获取对象的实例。唯一的目的就是在该对象被垃圾收集器回收时收到一个系统通知</p>
+</li>
+</ul>
+<h4 id="垃圾收集"><a href="#垃圾收集" class="headerlink" title="垃圾收集"></a>垃圾收集</h4><p>垃圾收集主要发生在堆，方法区内也会进行垃圾回收，主要有两部分</p>
+<ul>
+<li><p>废弃的常量</p>
+<p>与堆内的对象回收类似，没有任何引用时就会被回收</p>
+</li>
+<li><p>不再使用的类型</p>
+<p>需要同时满足三个条件</p>
+<ul>
+<li>该类型以及派生子类的所有实例已经被回收</li>
+<li>加载该类的类加载器已经被回收</li>
+<li>该类对应的java.lang.Class对象没有在任何地方被引用</li>
+</ul>
+</li>
+</ul>
+<h4 id="垃圾收集算法"><a href="#垃圾收集算法" class="headerlink" title="垃圾收集算法"></a>垃圾收集算法</h4><ul>
+<li><p>标记-清除</p>
+<p>首先标记出所有需要回收的对象，在标记完成后，统一回收掉所有被标记的对象。</p>
+<ul>
+<li>缺点<ul>
+<li>执行效率不稳定，标记和清除两个过程的执行效率会随着对象数量增长而降低</li>
+<li>标记和清除之后会产生大量不连续的内存碎片，空间碎片太多会导致需要分配较大对象时无法找到足够的连续内存，提前触发另一次垃圾收集</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>标记-整理</p>
+<p>标记阶段与标记-清除中的标记一致，整理则是让所有存活的对象都向内存空间一端移动，然后直接清理掉边界以外的内存</p>
+<ul>
+<li><p>优点</p>
+<p>没有内存碎片</p>
+</li>
+<li><p>缺点</p>
+<p>需要移动存活对象，耗费时间更长</p>
+</li>
+</ul>
+</li>
+<li><p>复制算法</p>
+<p>将可用内存划分为两块，每次只使用其中的一块，当半区内存即将耗尽时，仅将还存活的对象复制到另外一块上，适合生命周期比较短的对象，现在的商业虚拟机都使用复制算法来回收新生代。Hotspot 使用 eden、from survivor 和 to survivor，默认比例 8:1:1，每次只使用eden和一个survivor，内存的使用率可以达到90%</p>
+<ul>
+<li><p>优点</p>
+<ul>
+<li>只需要扫描存活的对象，效率高</li>
+<li>不会产生碎片</li>
+</ul>
+</li>
+<li><p>缺点</p>
+<p>只能使用一半的内存</p>
+</li>
+</ul>
+</li>
+<li><p>分代算法</p>
+<ul>
+<li><p>新生代</p>
+<p>复制算法</p>
+</li>
+<li><p>老年代</p>
+<p>标记-清除或者标记-整理</p>
+</li>
+</ul>
+</li>
+</ul>
+<h4 id="HotSpot的算法实现细节"><a href="#HotSpot的算法实现细节" class="headerlink" title="HotSpot的算法实现细节"></a>HotSpot的算法实现细节</h4><h5 id="根结点枚举"><a href="#根结点枚举" class="headerlink" title="根结点枚举"></a>根结点枚举</h5><p>所有收集器在该步骤都需要暂停用户线程，利用OopMap快速准确的完成，在以下特定位置中会生成OopMap</p>
+<ul>
+<li><p>安全点</p>
+<p>程序执行时，根据是否具有让程序长时间执行的标准来选定，例如方法调用、循环跳转、异常跳转</p>
+<p>在垃圾收集发生时，如何让所有线程都跑到最近的安全点</p>
+<ul>
+<li><p>抢先式中断</p>
+<p>在垃圾收集发生时，系统首先把所有用户线程全部中断，若发现有用户线程不在安全点上，就恢复该线程继续执行，再重新中断，直到跑到安全点上</p>
+</li>
+<li><p>主动式中断</p>
+<p>当垃圾收集器需要中断线程时，设置一个标识位，每个线程在执行过程中会主动轮询该标识位，若为真，则在最近的安全点上主动挂起</p>
+</li>
+</ul>
+</li>
+<li><p>安全区域</p>
+<p>程序没有执行，即没有分配处理器时间。安全区域指能够确保在某一段代码片段中，引用关系不会发生变化。可以看作北扩拉伸了的安全点.Hotspot使用内存保护陷阱的方式，把轮询操作精简至只有一条汇编指令</p>
+<p>用户线程执行到安全区域内的代码时，会首先标识自己已经进入安全区域。当离开安全区域时，检查虚拟机是否已经完成了根节点枚举或其他需要暂停用户线程的阶段，若已完成，则继续执行；否则，一直等待</p>
+</li>
+</ul>
+<h5 id="可达性分析"><a href="#可达性分析" class="headerlink" title="可达性分析"></a>可达性分析</h5><p>可通过三色标级作为工具来辅助推导</p>
+<ul>
+<li><p>白色</p>
+<p>表示对象尚未被垃圾收集器访问过，可达性分析刚开始的阶段，所有的对象都是白色。分析结束时，若依然是白色，则代表不可达</p>
+</li>
+<li><p>黑色</p>
+<p>表示对象已经被垃圾收集器访问过，且这个对象的所有引用都已经扫描过。黑色对象是安全存活的，若有其他对象引用指向了黑色对象，无需重新扫描。黑色对象不可能直接指向（不通过灰色对象）某个白色对象</p>
+</li>
+<li><p>灰色</p>
+<p>表示对象已经被垃圾收集器访问过，但这个对象上至少存在一个引用还没有被扫描过</p>
+</li>
+</ul>
+<p>并发扫描仅当以下两个条件同时满足时会产生对象消失的问题，即原本应该是黑色的对象被标记成白色</p>
+<ul>
+<li>赋值器插入了一条或多条从黑色对象到白色对象的新引用</li>
+<li>赋值其删除了全部灰色对象到该白色对象的直接或间接引用</li>
+</ul>
+<p>并发扫描问题有两种解决方案</p>
+<ul>
+<li><p>增量更新</p>
+<p>破坏第一个条件，当黑色对象插入新的指向白色对象的新引用时，记录下该引用，等并发扫描完成之后，再将这些记录中的黑色对象为根，重新扫描一次</p>
+<p>CMS基于增量更新来做并发标记</p>
+</li>
+<li><p>原始快照</p>
+<p>破坏第二个条件，当灰色对象要删除指向白色对象的引用关系时，记录下该引用，等并发结束后，再将这些记录中的灰色对象为根，重新扫描一次</p>
+<p>G1、Shenandoah使用原是快照实现并发标记</p>
+</li>
+</ul>
+<h5 id="跨代引用"><a href="#跨代引用" class="headerlink" title="跨代引用"></a>跨代引用</h5><p>所有涉及部分区域收集行为的垃圾收集器都会存在跨代引用的问题，通过在收集区域（例如新生代）建立名为记忆集的数据结构，用以避免整个非收集区域（例如老年代）加进GC Roots扫描范围</p>
+<p>记忆集是一种用于记录从非收集区域指向收集区域的指针集合的抽象数据结构，可从不同的粒度来实现</p>
+<ul>
+<li><p>字长精度</p>
+<p>每个记录精确到一个机器字长，例如常见的32位或64位，该字包含跨代指针</p>
+</li>
+<li><p>对象精度</p>
+<p>每个记录精确到一个对象，该对象里有字段含有跨代指针</p>
+</li>
+<li><p>卡精度</p>
+<p>每个记录精确到一块内存区域，该区域内有跨代指针。通过卡表实现，目前最常用。Hotspot虚拟机通过字节数组实现，数组中的每个元素对应其标识内存区域中一块特定大小的内存块，该内存块被称为卡页.只要卡页内有一个或多个对象的字段存在跨代指针，那就将对应卡表的数组元素的值标识为1，称为这个元素变脏了，没有则标识为0</p>
+<p>CARD_TABLE [this address &gt;&gt; 9 ] = 0</p>
+<p>有其他分代区域中对象引用了本区域对象是，其对应的卡表就应该变脏。在Hotspot虚拟机中通过写屏障技术维护卡表状态。写屏障可以看作是在虚拟机层面对引用类型字段赋值这个动作的AOP切面，包含写前屏障和写后屏障</p>
+</li>
+</ul>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/JVM/" rel="tag"># JVM</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/03/19/%E5%8A%A8%E6%80%81%E4%BB%A3%E7%90%86/" rel="prev" title="动态代理">
+      <i class="fa fa-chevron-left"></i> 动态代理
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/04/02/JVM-%E8%BF%90%E8%A1%8C%E6%97%B6%E6%95%B0%E6%8D%AE%E5%8C%BA/" rel="next" title="JVM-运行时数据区">
+      JVM-运行时数据区 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%A6%82%E4%BD%95%E5%88%A4%E5%AE%9A%E4%B8%BA%E5%9E%83%E5%9C%BE"><span class="nav-number">1.</span> <span class="nav-text">如何判定为垃圾</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E8%AE%A1%E6%95%B0%E7%AE%97%E6%B3%95"><span class="nav-number">1.1.</span> <span class="nav-text">引用计数算法</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%8F%AF%E8%BE%BE%E6%80%A7%E5%88%86%E6%9E%90%E7%AE%97%E6%B3%95"><span class="nav-number">1.2.</span> <span class="nav-text">可达性分析算法</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#GC-Roots"><span class="nav-number">1.2.1.</span> <span class="nav-text">GC Roots</span></a></li></ol></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%BC%95%E7%94%A8%E7%B1%BB%E5%9E%8B"><span class="nav-number">1.3.</span> <span class="nav-text">引用类型</span></a></li></ol></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9E%83%E5%9C%BE%E6%94%B6%E9%9B%86"><span class="nav-number">2.</span> <span class="nav-text">垃圾收集</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#%E5%9E%83%E5%9C%BE%E6%94%B6%E9%9B%86%E7%AE%97%E6%B3%95"><span class="nav-number">3.</span> <span class="nav-text">垃圾收集算法</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#HotSpot%E7%9A%84%E7%AE%97%E6%B3%95%E5%AE%9E%E7%8E%B0%E7%BB%86%E8%8A%82"><span class="nav-number">4.</span> <span class="nav-text">HotSpot的算法实现细节</span></a><ol class="nav-child"><li class="nav-item nav-level-5"><a class="nav-link" href="#%E6%A0%B9%E7%BB%93%E7%82%B9%E6%9E%9A%E4%B8%BE"><span class="nav-number">4.1.</span> <span class="nav-text">根结点枚举</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E5%8F%AF%E8%BE%BE%E6%80%A7%E5%88%86%E6%9E%90"><span class="nav-number">4.2.</span> <span class="nav-text">可达性分析</span></a></li><li class="nav-item nav-level-5"><a class="nav-link" href="#%E8%B7%A8%E4%BB%A3%E5%BC%95%E7%94%A8"><span class="nav-number">4.3.</span> <span class="nav-text">跨代引用</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">大刘</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">7</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">1</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">2</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">大刘</span>
+</div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
