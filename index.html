@@ -263,7 +263,7 @@
                   <i class="far fa-calendar-check"></i>
                 </span>
                 <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2021-04-21 17:55:02" itemprop="dateModified" datetime="2021-04-21T17:55:02+08:00">2021-04-21</time>
+                <time title="修改时间：2021-04-22 08:56:26" itemprop="dateModified" datetime="2021-04-22T08:56:26+08:00">2021-04-22</time>
               </span>
 
           
@@ -308,138 +308,14 @@
 </tbody></table>
 </li>
 </ul>
-<h5 id="jstat-虚拟机统计信息监视工具"><a href="#jstat-虚拟机统计信息监视工具" class="headerlink" title="jstat 虚拟机统计信息监视工具"></a>jstat 虚拟机统计信息监视工具</h5><p>用于监视虚拟机各种运行状态信息的命令行工具。可以显示本地或远程虚拟机进程中的类加载、内存、垃圾收集、即时编译等运行时数据</p>
-<ul>
-<li><p>命令格式</p>
-<p>jstat [ options vmid [ interval [s | ms] [count] ] ]</p>
-</li>
-<li><p>主要选项值</p>
-<table>
-<thead>
-<tr>
-<th>选项</th>
-<th>作用</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>-class</td>
-<td>监视类加载、卸载数量、总空间以及类装载所耗费时间</td>
-</tr>
-<tr>
-<td>-gc</td>
-<td>监视java堆状况，包括Eden区、2个Survivor区、老年代、永久代等的容量，已用空间，垃圾收集<br>时间合计等信息</td>
-</tr>
-<tr>
-<td>-gccapacity</td>
-<td>监视内容与-gc基本相同，但输出主要关注Java堆各个区域使用到的最大、最小空间</td>
-</tr>
-<tr>
-<td>-gcutil</td>
-<td>监视内容与-gc基本相同，但输出主要关注已使用空间占总空间的百分比</td>
-</tr>
-<tr>
-<td>-gccause</td>
-<td>与-gcutil一样，但是会额外输出导致上一次垃圾收集产生的原因</td>
-</tr>
-<tr>
-<td>-gcnew</td>
-<td>监视新生代垃圾收集情况</td>
-</tr>
-<tr>
-<td>-gcnewcapacity</td>
-<td>监视内容与-gcnew基本相同，输出主要关注使用到的最大、最小空间</td>
-</tr>
-<tr>
-<td>-gcold</td>
-<td>监视老年代的垃圾收集情况</td>
-</tr>
-<tr>
-<td>-gcoldcapacity</td>
-<td>监视内容与-gcold基本相同，输出主要关注使用到的最大、最小空间</td>
-</tr>
-<tr>
-<td>-compiler</td>
-<td>输出即时编译器编译过的方法、耗时信息</td>
-</tr>
-<tr>
-<td>-printcompilation</td>
-<td>输出已经被即时编译的方法</td>
-</tr>
-</tbody></table>
-</li>
-</ul>
-<h5 id="Info-Java-配置信息工具"><a href="#Info-Java-配置信息工具" class="headerlink" title="Info Java 配置信息工具"></a>Info Java 配置信息工具</h5><p>实时查看和调整虚拟机各项参数</p>
-<ul>
-<li><p>命令格式</p>
-<p>jinfo [ option ] pid</p>
-</li>
-<li><p>主要选项值</p>
-<p>-flags 查看虚拟机启动时未被显式指定的参数</p>
-<p>-flag [+/-] name 或 -flag name=value 在运行期修改一部分运行期可写的虚拟机参数</p>
-</li>
-</ul>
-<h5 id="jmap-Java内存映像工具"><a href="#jmap-Java内存映像工具" class="headerlink" title="jmap Java内存映像工具"></a>jmap Java内存映像工具</h5><p>生成堆转储快照(dump heap / dump 文件),还可以查询finalize执行队列、Java堆和方法区的详细信息，如空间使用率、当前用的是那种收集器等</p>
-<ul>
-<li><p>命令格式</p>
-<p>jmap [ option ] vmid</p>
-</li>
-<li><p>主要选项值</p>
-<table>
-<thead>
-<tr>
-<th>选项</th>
-<th>作用</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>-dump</td>
-<td>生成Java堆转储快照。格式为-dump:[live]fromat=b,file=&lt;filename&gt;,其中live参数说明是否只dump出存活的对象</td>
-</tr>
-<tr>
-<td>-finalizerinfo</td>
-<td>显示在F-Queue中等待Finalizer线程执行finalize方法的对象。只有在Linux/Solaris平台下有效</td>
-</tr>
-<tr>
-<td>-heap</td>
-<td>显示Java堆详细信息，如使用哪种回收器、参数配置、分代状况等。只有在Linux/Solaris平台下有效</td>
-</tr>
-<tr>
-<td>-histo</td>
-<td>显示堆中对象统计信息，包括类、实例数量、合计容量</td>
-</tr>
-<tr>
-<td>-permstat</td>
-<td>以ClassLoader 为统计口径显示永久代内存状态。只有在Linux/Solaris平台下有效</td>
-</tr>
-<tr>
-<td>-F</td>
-<td>当虚拟机进程对-dump选项没有响应时，可强制生成dump快照。只有在Linux/Solaris平台下有效</td>
-</tr>
-</tbody></table>
-</li>
-</ul>
-<h5 id="jstack-Java堆栈跟踪工具"><a href="#jstack-Java堆栈跟踪工具" class="headerlink" title="jstack Java堆栈跟踪工具"></a>jstack Java堆栈跟踪工具</h5><p>用于生成虚拟机当前时刻的线程快照(一般称为threaddump或者javacore文件)。线程快照就是当前虚拟机内每一条线程正在执行的方法堆栈的集合，生成的快照一般用于定位线程出现长时间停顿的原因，如线程间死锁、死循环、请求外部资源导致的长时间挂起等</p>
-<ul>
-<li><p>命令格式</p>
-<p>jstack [ option ] vmid</p>
-</li>
-<li><p>主要选项</p>
-<p>-F    当正常输出的请求不被响应时，强制输出线程堆栈</p>
-<p>-l     除堆栈外，显示关于锁的附加信息</p>
-<p>-m    如果调用到本地方法的话，可以显示 C/C++的堆栈</p>
-</li>
-</ul>
-<h5 id="其他常用工具"><a href="#其他常用工具" class="headerlink" title="其他常用工具"></a>其他常用工具</h5><ul>
-<li><p>jhat    </p>
-<p>分析堆转储快照，在JDK9中被JHSDB替代</p>
-</li>
-<li><p>jcmd</p>
-<p>JVM Command， 虚拟机诊断命令工具，将诊断命令请求发送到正在运行的Java虚拟机</p>
-</li>
-</ul>
-<h4 id="可视化故障处理工具"><a href="#可视化故障处理工具" class="headerlink" title="可视化故障处理工具"></a>可视化故障处理工具</h4><h5 id="JConsole-Java监视与管理控制台"><a href="#JConsole-Java监视与管理控制台" class="headerlink" title="JConsole Java监视与管理控制台"></a>JConsole Java监视与管理控制台</h5><p>Java Monitoring and Management Console,基于JMX(Java Management Extensions)的可视化件事、管理工具。通过JMX的MBean(Managed Bean) 对系统进行信息收集和参数动态调整。</p>
-<h5 id="JHSDB-基于服务性代理的调试工具"><a href="#JHSDB-基于服务性代理的调试工具" class="headerlink" title="JHSDB 基于服务性代理的调试工具"></a>JHSDB 基于服务性代理的调试工具</h5><p>服务性代理是Hotspot虚拟机中一组用于映射Java虚拟机运行信息的、主要基于Java语言(含少量JNI代码)实现的API集合。服务性代理以HotSpot内部的数据结构为参照物进行设计，把这些C++的数据抽象出Java模型对象。通过服务性代理的API，可以在一个独立的Java虚拟机的进程里分析其他HotSpot虚拟机的内部数据，或者从HostSpot虚拟机进程内存中dump出来的转储快照里面还原出它的运行状态细节</p>
-<h5 id="VisualVM-多合-故障处理工具"><a href="#VisualVM-多合-故障处理工具" class="headerlink" title="VisualVM 多合-故障处理工具"></a>VisualVM 多合-故障处理工具</h5><h5 id="JMC-可持续在线的监控工具"><a href="#JMC-可持续在线的监控工具" class="headerlink" title="JMC 可持续在线的监控工具"></a>JMC 可持续在线的监控工具</h5>
+          <!--noindex-->
+            <div class="post-button">
+              <a class="btn" href="/2021/04/03/JVM-%E5%B8%B8%E7%94%A8%E5%B7%A5%E5%85%B7/#more" rel="contents">
+                阅读全文 &raquo;
+              </a>
+            </div>
+          <!--/noindex-->
+        
       
     </div>
 
